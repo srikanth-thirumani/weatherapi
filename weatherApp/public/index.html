@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .search-container {
+            display: flex;
+            margin: 20px 0;
+        }
+        #city-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        #search-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #search-btn:hover {
+            background-color: #45a049;
+        }
+        #weather-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .weather-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .weather-icon {
+            margin-right: 20px;
+            width: 80px;
+            height: 80px;
+        }
+        .weather-main {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .weather-description {
+            font-size: 18px;
+            color: #666;
+        }
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .weather-detail {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .weather-detail-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .weather-detail-label {
+            color: #666;
+            font-size: 14px;
+        }
+        #error-message {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Weather App</h1>
+        
+        <div class="search-container">
+            <input type="text" id="city-input" placeholder="Enter city name..." autocomplete="off">
+            <button id="search-btn">Search</button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <p>Loading weather data...</p>
+        </div>
+        
+        <div id="error-message"></div>
+        
+        <div id="weather-container">
+            <div class="weather-header">
+                <img id="weather-icon" class="weather-icon" src="" alt="Weather Icon">
+                <div>
+                    <h2 id="city-name"></h2>
+                    <div class="weather-main" id="weather-main"></div>
+                    <div class="weather-description" id="weather-description"></div>
+                </div>
+            </div>
+            
+            <div class="weather-details">
+                <div class="weather-detail">
+                    <div class="weather-detail-value" id="temperature"></div>
+                    <div class="weather-detail-label">Temperature</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="weather-detail-value" id="feels-like"></div>
+                    <div class="weather-detail-label">Feels Like</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="weather-detail-value" id="humidity"></div>
+                    <div class="weather-detail-label">Humidity</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="weather-detail-value" id="wind-speed"></div>
+                    <div class="weather-detail-label">Wind Speed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cityInput = document.getElementById('city-input');
+            const searchBtn = document.getElementById('search-btn');
+            const weatherContainer = document.getElementById('weather-container');
+            const errorMessage = document.getElementById('error-message');
+            const loading = document.getElementById('loading');
+            
+            // Handle Enter key press in the input field
+            cityInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    searchWeather();
+                }
+            });
+            
+            // Handle search button click
+            searchBtn.addEventListener('click', searchWeather);
+            
+            function searchWeather() {
+                const city = cityInput.value.trim();
+                
+                if (!city) {
+                    showError('Please enter a city name');
+                    return;
+                }
+                
+                // Show loading, hide previous results and errors
+                loading.style.display = 'block';
+                weatherContainer.style.display = 'none';
+                errorMessage.style.display = 'none';
+                
+                // Fetch weather data from our backend API
+                fetch(`/api/weather?city=${encodeURIComponent(city)}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => {
+                                throw new Error(err.error || 'Failed to fetch weather data');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Hide loading
+                        loading.style.display = 'none';
+                        
+                        // Display weather data
+                        displayWeatherData(data);
+                    })
+                    .catch(error => {
+                        // Hide loading
+                        loading.style.display = 'none';
+                        
+                        // Show error message
+                        showError(error.message);
+                    });
+            }
+            
+            function displayWeatherData(data) {
+                // Set city name
+                document.getElementById('city-name').textContent = `${data.name}, ${data.sys.country}`;
+                
+                // Set weather main and description
+                document.getElementById('weather-main').textContent = data.weather[0].main;
+                document.getElementById('weather-description').textContent = 
+                    data.weather[0].description.charAt(0).toUpperCase() + 
+                    data.weather[0].description.slice(1);
+                
+                // Set weather icon
+                const iconCode = data.weather[0].icon;
+                document.getElementById('weather-icon').src = 
+                    `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+                
+                // Set temperature, feels like, humidity, wind speed
+                document.getElementById('temperature').textContent = `${Math.round(data.main.temp)}°C`;
+                document.getElementById('feels-like').textContent = `${Math.round(data.main.feels_like)}°C`;
+                document.getElementById('humidity').textContent = `${data.main.humidity}%`;
+                document.getElementById('wind-speed').textContent = `${data.wind.speed} m/s`;
+                
+                // Show weather container
+                weatherContainer.style.display = 'block';
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
